@@ -26,8 +26,20 @@ function generate(words){for(let tries=0;tries<100;tries++){let a=Array(size*siz
 function line(a,b){let x=a%size,y=Math.floor(a/size),xx=b%size,yy=Math.floor(b/size),dx=Math.sign(xx-x),dy=Math.sign(yy-y),steps=Math.max(Math.abs(xx-x),Math.abs(yy-y));if(x!==xx&&y!==yy&&Math.abs(xx-x)!==Math.abs(yy-y))return [];return Array.from({length:steps+1},(_,i)=>(y+i*dy)*size+x+i*dx)}
 function speed(p){let r=p.words.length-p.found.size,t=p.words.length;return r>Math.ceil(t*.6)?20:r>Math.ceil(t*.3)?15:10}
 function reshuffle(p){let g=generate(p.words.filter(w=>!p.found.has(w)));if(!g)return false;p.letters=g.letters;p.paths=g.paths;p.remaining=speed(p)*1000;p.sel=[];return true}
+// Classic only: stable colour per word, with equal split segments for overlaps.
+const classicColors=['#f5bd67','#79d4c2','#b7a3f2','#f39eb9','#8dc7f5','#d9dd75','#f4a878','#9ed79d','#e0a5df','#85d7e9','#f3d28e','#b8c5ff'];
+function classicColor(index){return classicColors[index%classicColors.length]}
+function classicCellPaint(p,index){
+  if(type!=='classic')return null;
+  const matches=p.words.filter(w=>p.found.has(w)&&p.paths[w]?.includes(index));
+  if(!matches.length)return null;
+  const colors=matches.map(w=>classicColor(p.words.indexOf(w)));
+  if(colors.length===1)return colors[0];
+  const n=colors.length;
+  return 'conic-gradient('+colors.map((color,i)=>`${color} ${i*100/n}% ${(i+1)*100/n}%`).join(',')+')';
+}
 function paintTime(){players.forEach(p=>{if(!p.el)return;p.el.querySelector('.elapsed').textContent='⏱ '+fmt(p.time);p.el.querySelector('.timer').textContent=p.finished?'🏁 Terminé':type==='folle'?'🔄 '+Math.ceil(p.remaining/1000)+'s':'🔒 Fixe'});if(graceMs!==null&&!ended){$('grace').classList.remove('hide');$('grace').textContent='⏳ Temps restant pour le deuxième joueur : '+fmt(graceMs)}}
-function draw(){let game=$('game');game.innerHTML='';players.forEach(p=>{let el=document.createElement('div');el.className='player';el.innerHTML=`<h2>${p.name}${p.finished?' 🏁':''}</h2><div class="stats"><b>${p.found.size}/${p.words.length} mots</b><span class="elapsed">⏱ ${fmt(p.time)}</span><span class="timer">${type==='folle'?'🔄 '+Math.ceil(p.remaining/1000)+'s':'🔒 Fixe'}</span></div><div class="words"></div><div class="grid" style="--size:${size}"></div><p class="status"></p>`;let board=el.querySelector('.grid');p.letters.forEach((v,i)=>{let c=document.createElement('div');c.className='cell';c.dataset.i=i;c.textContent=v;board.append(c)});p.words.forEach(w=>{let s=document.createElement('span');s.textContent=w;if(p.found.has(w))s.className='done';el.querySelector('.words').append(s)});el.querySelector('.status').textContent=p.message||'';
+function draw(){let game=$('game');game.innerHTML='';players.forEach(p=>{let el=document.createElement('div');el.className='player';el.innerHTML=`<h2>${p.name}${p.finished?' 🏁':''}</h2><div class="stats"><b>${p.found.size}/${p.words.length} mots</b><span class="elapsed">⏱ ${fmt(p.time)}</span><span class="timer">${type==='folle'?'🔄 '+Math.ceil(p.remaining/1000)+'s':'🔒 Fixe'}</span></div><div class="words"></div><div class="grid" style="--size:${size}"></div><p class="status"></p>`;let board=el.querySelector('.grid');p.letters.forEach((v,i)=>{let c=document.createElement('div');c.className='cell';c.dataset.i=i;c.textContent=v;const bg=classicCellPaint(p,i);if(bg){c.style.background=bg;c.style.color='#172239'}board.append(c)});p.words.forEach(w=>{let s=document.createElement('span');s.textContent=w;if(p.found.has(w)){s.className='done';if(type==='classic'){s.style.background=classicColor(p.words.indexOf(w));s.style.color='#172239';s.style.opacity='1'}}el.querySelector('.words').append(s)});el.querySelector('.status').textContent=p.message||'';
 let cell=e=>{let c=document.elementFromPoint(e.clientX,e.clientY)?.closest('.cell');return c?.parentElement===board?+c.dataset.i:null};let paint=()=>board.querySelectorAll('.cell').forEach((c,i)=>c.classList.toggle('on',p.sel.includes(i)));
 board.addEventListener('pointerdown',e=>{if(!started||paused||ended||p.finished)return;let i=cell(e);if(i===null)return;p.drag=true;p.first=i;p.sel=[i];board.setPointerCapture(e.pointerId);paint();e.preventDefault()});
 board.addEventListener('pointermove',e=>{if(!p.drag)return;let i=cell(e);if(i!==null){p.sel=line(p.first,i);paint()}e.preventDefault()});
